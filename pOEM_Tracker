@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Sep 26 10:35:37 2023
-
-@author: kag7317
-"""
 """
 This script makes use of the TLEs to estimate the position of the satellite as it projects its contour unto earth. It works by using the velocity and position vectors of the TLE and rotating the matrices until it
 arrives at its final frame. It then plots is projected position unto a 2D representation of the Earth.
@@ -38,7 +32,7 @@ Author: Enrique Peraza
 
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-from skyfield.api import load, Topos, 
+from skyfield.api import load, Topos
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from time import gmtime, strftime
@@ -125,8 +119,8 @@ else:
     r_TOD = earth_rotation.apply(r_PECI)
 
     # Convert ECI coordinates to geographic coordinates
-    eci_position = ICRF(r)
-    subpoint = eci_position.subpoint()
+    subpoint = geocentric.subpoint()
+
     
     # print("The OEM coordinates of the satellite are: \n", r)
     # Get the longitude and latitude for the subpoint 
