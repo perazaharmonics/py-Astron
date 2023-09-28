@@ -75,6 +75,14 @@ def update(num, satellite, ts, ax):
 
     return ax
 
+# Define a function to get the Greenwich Sidereal Time (GST) in degrees
+def get_GST(UT1):
+    if UT1 < 0:
+        raise ValueError("UT1 must be non-negative")
+    GST_deg = 100.4606184 + 36000.77005361 * UT1 + 0.00038793 * UT1**2 - 2.6e-8 * UT1**3
+    return GST_deg
+
+
 # Load TLE data from Celestrak for satellites.
 satellites = load.tle_file('https://celestrak.com/NORAD/elements/stations.txt')
 by_name = {sat.name: sat for sat in satellites}
@@ -97,23 +105,23 @@ else:
     ts = load.timescale()
 
     # Get the current time.
-    t = ts.now()
+    time_vector = ts.now()
     
     # Compute the geocentric position and velocity of the satellite at time t.
-    geocentric = satellite.at(t)
+    geocentric = satellite.at(time_vector)
     # Position and Velocity vector in the Geocentric Coordinate System (GCRS), aka ECI.
-    r = geocentric.position.km
-    v = geocentric.velocity.km_per_s  # Get the velocity as well
+    sat_pos = geocentric.position.km
+    sat_vel = geocentric.velocity.km_per_s  # Get the velocity as well
     print (" \n The position vector of the satellite of interest is given by: \n")
-    print(r)
-    print(" \n the velocity of the sattelite of interest is given by: %.4f \n", v )
-    
+    print(sat_pos)
+    print(" \n the velocity of the sattelite of interest is given by: %.4f \n" )
+    print(sat_vel)
 
 
 
     # I, J, K components of the position vector in the ECI frame
     print("\n The Earth-Centered Inertial coordinate matrix: \n ")
-    I, J, K = r
+    I, J, K = sat_pos
     IJK = np.vstack((I, J, K)).T
     print(IJK)
 
@@ -122,7 +130,7 @@ else:
 
     print("\n Obtaining UT1: \n")
     # Get the current UT1
-    UT1 = t.ut1
+    UT1 = time_vector.ut1
     print(UT1)
 
    
@@ -133,7 +141,7 @@ else:
 
     print("\n Computing GST in degrees: \n")
     # Compute GST
-    GST_deg = (UT1 * 360.98564724) % 360  # This gives GST in degrees
+    GST_deg = get_GST(UT1)
     print("\n The Greenwich Sidereal Time (GST) in degrees: \n")
     print(GST_deg)
     # Convert GST to radians
@@ -145,14 +153,14 @@ else:
     print(earth_rotation)
 
     # Define the position vector in the PECI frame
-    r_PECI = r  # Use the actual position vector
+    sat_pos_PECI = sat_pos  # Use the actual position vector
 
     # Define the Earth rotation angle 
     earth_rotation_angle = GST_rad  # in radians
     print("\n The Earth rotation angle given by Greenwhich Sidereal Time (radians): \n")
     print(earth_rotation_angle)
-    # Apply the rotation to the position vector to get True Equator True Mean 
-    r_TOD = earth_rotation.apply(r_PECI)
+    # Apply the rotation to the position vector to get Earth Centered Earth Fixed (ECEF) coordinates
+    sat_pos_TOD = earth_rotation.apply(sat_pos_PECI)
 
     # Convert ECI coordinates to geographic coordinates
     subpoint = geocentric.subpoint()
@@ -177,7 +185,7 @@ else:
     TIME_SYSTEM = UTC
     META_STOP
 
-    {t.utc_iso()} {r[0]:.6f} {r[1]:.6f} {r[2]:.6f} {v[0]:.6f} {v[1]:.6f} {v[2]:.6f} 0.0 0.0 0.0
+    {time_vector.utc_iso()} {sat_pos[0]:.6f} {sat_pos[1]:.6f} {sat_pos[2]:.6f} {sat_vel[0]:.6f} {sat_vel[1]:.6f} {sat_vel[2]:.6f} 0.0 0.0 0.0
     """
 
     print(oem_message)
@@ -190,9 +198,13 @@ else:
 
     # Add a marker for the satellite's subpoint
     sat_marker = plt.plot(subpoint_longitude, subpoint_latitude, 'ro', markersize=5, transform=ccrs.PlateCarree(), label='Satellite')
-
     
-
+    #Plot CBU Ground Station
+    CBU_Marker = plt.plot(-80.142578, 39.485085, 'go', markersize=2.5, transform=ccrs.PlateCarree(), label='CBU')
+    
+    #Plot WCDAS Ground Station
+    WCDAS_Marker = plt.plot(-75.439339, 37.883255, 'go', markersize=2.5, transform=ccrs.PlateCarree(), label='WCDAS')
+    
     # Add a legend
     plt.legend(handles=[sat_marker[0]], loc='upper right')
 
@@ -215,7 +227,7 @@ else:
     ax.set_extent([left_lon, right_lon, bottom_lat, top_lat])
     
     # Start the animation
-    anim = FuncAnimation(fig, update, frames=range(0, 288), fargs=[satellite, ts, ax], repeat=True)  # 288 updates for 5-minute intervals over 24 hours
-    anim.save()
+    #anim = FuncAnimation(fig, update, frames=range(0, 288), fargs=[satellite, ts, ax], repeat=True)  # 288 updates for 5-minute intervals over 24 hours
+    #anim.save()
 
     plt.show()
