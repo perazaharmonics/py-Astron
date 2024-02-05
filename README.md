@@ -1,2 +1,4 @@
 # pyStarGaze
-A collection of files used to track satellite orbits in Different formats (ICRF, PECI, &amp; OEM)
+A collection of files used to track Celestial Objects.
+Algorithms either made by me, or taken from Jean Meeu's Astronomical
+Algorithms. 
