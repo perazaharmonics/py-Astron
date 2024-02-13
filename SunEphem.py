@@ -35,10 +35,41 @@ def get_sun_position(year, month, day):
     delta = math.degrees(delta)
     return alpha % 360, delta
 
+def calculate_azimuth_elevation(observer_lat, observer_lon, year, month, day, utc_hour):
+    # Constants
+    observer_lat_rad = math.radians(observer_lat)
+    
+    # Get Julian Day
+    JD = get_julian_day(year, month, day)
+    # Calculate the sun's position
+    _, dec_degrees = get_sun_position(year, month, day)
+    dec_rad = math.radians(dec_degrees)
+    
+    # Calculate Local Sidereal Time (LST)
+    T = (JD - 2451545.0) / 36525.0
+    LST_hours = (6.697374558 + 24.06570982441908 * (JD - 2451545) + T*T*0.000026 * (T)) % 24
+    LST = LST_hours * 15.0  # Convert hours to degrees
+    
+    # Calculate Hour Angle (HA)
+    HA = LST + observer_lon - ra
+    HA_rad = math.radians(HA)
+    
+    # Elevation
+    elevation_rad = math.asin(math.sin(observer_lat_rad)*math.sin(dec_rad) + math.cos(observer_lat_rad)*math.cos(dec_rad)*math.cos(HA_rad))
+    elevation = math.degrees(elevation_rad)
+    
+    # Azimuth
+    azimuth_rad = math.atan2(-math.sin(HA_rad), (math.tan(dec_rad)*math.cos(observer_lat_rad) - math.sin(observer_lat_rad)*math.cos(HA_rad)))
+    azimuth = math.degrees(azimuth_rad) + 180.0  # Adjusting azimuth to be measured from the North
+    
+    return azimuth, elevation
+
 # User input section
 year = int(input("Enter the year: "))
 month = int(input("Enter the month: "))
 day = int(input("Enter the day: "))
+observer_lat = float(input("Enter the observer's latitude (negative for South): "))
+observer_lon = float(input("Enter the observer's longitude (negative for West): "))
 
 # Get the current UTC time
 current_utc_time = datetime.utcnow()
@@ -47,6 +78,10 @@ utc_hour = current_utc_time.hour + current_utc_time.minute / 60 + current_utc_ti
 sun_longitude = calculate_sun_longitude(utc_hour)
 ra, dec = get_sun_position(year, month, day)
 print(f"Right Ascension: {ra:.2f} degrees, Declination: {dec:.2f} degrees")
+
+# Calculate sun's azimuth and elevation
+azimuth, elevation = calculate_azimuth_elevation(observer_lat, observer_lon, year, month, day, utc_hour)
+print(f"The sun's azimuth is {azimuth:.2f} degrees and elevation is {elevation:.2f} degrees")
 
 # Plotting with Cartopy
 fig = plt.figure(figsize=(10, 5))
