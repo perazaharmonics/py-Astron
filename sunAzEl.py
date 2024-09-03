@@ -71,7 +71,7 @@ def calculate_azimuth(observer_lat, observer_lon, year, month, day, local_hour, 
     LST=LST_hours*15.0 # Convert hours to degrees
 
     # Calculate Hour Angle (HA)
-    HA=LST-observer_lon-ra
+    HA=LST+observer_lon-ra
     HA_rad=math.radians(HA)
 
     # Azimuth
