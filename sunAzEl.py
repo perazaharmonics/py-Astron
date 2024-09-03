@@ -22,36 +22,90 @@ def calculate_sun_longitude(local_hour, utc_offset):
     # Calculate the sun's longitude, adjusting for it being at 0 degrees at 12:00 UTC
     sun_longitude = (fraction_of_day * 360) - 180
     return sun_longitude
+   
+def get_declination(year, month, day):
+    epsilon=23.4393-0.0000004*year # Obliquity of the Earth's axis
+    JD=get_julian_day(year, month, day) # Get the Julian Day
+    n=JD-2451545.0 # Number of days since January 1, 2000
+    L=(280.460+0.9856474*n)%360 # Mean longitude of the Sun
+    g=(357.528+0.9856003*n)%360 # Mean anomaly of the Sun
+    lambda_sun=L+1.915*math.sin(math.radians(g))+0.020*math.sin(math.radians(2*g)) # Ecliptic longitude of the Sun
+    delta=math.asin(math.sin(math.radians(epsilon))*math.sin(math.radians(lambda_sun))) # Declination
+    delta=math.degrees(delta) # Convert to degrees
+    return delta # Return the declination in degrees
 
-def get_sun_position(year, month, day):
-    epsilon = 23.4393 - 0.0000004 * year
-    JD = get_julian_day(year, month, day)
-    n = JD - 2451545.0
-    L = (280.460 + 0.9856474 * n) % 360
-    g = (357.528 + 0.9856003 * n) % 360
-    lambda_sun = L + 1.915 * math.sin(math.radians(g)) + 0.020 * math.sin(math.radians(2 * g))
-    alpha = math.atan2(math.cos(math.radians(epsilon)) * math.sin(math.radians(lambda_sun)), math.cos(math.radians(lambda_sun)))
-    alpha = math.degrees(alpha)
-    delta = math.asin(math.sin(math.radians(epsilon)) * math.sin(math.radians(lambda_sun)))
-    delta = math.degrees(delta)
-    return alpha % 360, delta
+def get_right_ascension(year, month, day):
+    epsilon=23.4393-0.0000004*year # Obliquity of the Earth's axis
+    JD=get_julian_day(year, month, day) # Get the Julian Day
+    n=JD-2451545.0 # Number of days since January 1, 2000
+    L=(280.460+0.9856474*n)%360 # Mean longitude of the Sun
+    g=(357.528+0.9856003*n)%360 # Mean anomaly of the Sun
+    lambda_sun=L+1.915*math.sin(math.radians(g))+0.020*math.sin(math.radians(2*g)) # Ecliptic longitude of the Sun
+    alpha=math.atan2(math.cos(math.radians(epsilon))*math.sin(math.radians(lambda_sun)),math.cos(math.radians(lambda_sun))) # Right Ascension
+    alpha=math.degrees(alpha) # Convert to degrees
+    return alpha # Return the right ascension in degrees
 
-def calculate_azimuth_elevation(observer_lat, observer_lon, year, month, day, local_hour, utc_offset):
+def calculate_azimuth(observer_lat, observer_lon, year, month, day, local_hour, utc_offset):
+    # Constants
+    observer_lat_rad=math.radians(observer_lat)
+
+    # Adjust local hour to UTC hour
+    utc_hour=local_hour+utc_offset
+    
+    # Get Julian Day
+    JD=get_julian_day(year, month, day)
+
+    # Calculate the sun's position
+    ra=get_right_ascension(year, month, day)
+    dec=get_declination(year, month, day)
+    ra_rad=math.radians(ra)
+    dec_rad=math.radians(dec)
+
+    # Calculate Local Sidereal Time (LST)
+    T=(JD-2451545.0)/36525.0                # Julian Centuries since J2000
+    sdshours=24.06570982441908*(JD-2451545) # Sidereal Time in hours since J2000
+    GSTJ2000=6.697374558                  # Greenwich Sidereal Time at J2000
+    corr=T*T*0.000026*(T)                # Correction for nutation, precession, and aberration
+
+    LST_hours=(GSTJ2000+sdshours+corr)%24
+    LST=LST_hours*15.0 # Convert hours to degrees
+
+    # Calculate Hour Angle (HA)
+    HA=LST-observer_lon-ra
+    HA_rad=math.radians(HA)
+
+    # Azimuth
+    azimuth_rad=math.atan2(math.sin(HA_rad),math.cos(HA_rad)*math.sin(observer_lat_rad)-math.tan(math.radians(dec))*math.cos(observer_lat_rad))
+    
+
+    azimuth=math.degrees(azimuth_rad)
+    return azimuth
+
+def calculate_elevation(observer_lat, observer_lon, year, month, day, local_hour, utc_offset):
     # Constants
     observer_lat_rad = math.radians(observer_lat)
-    # Adjust local hour to UTC hour
     
+    # Adjust local hour to UTC hour
     utc_hour = local_hour - utc_offset
+    
     # Get Julian Day
     JD = get_julian_day(year, month, day)
-    # Calculate the sun's position
-    _, dec_degrees = get_sun_position(year, month, day)
-    dec_rad = math.radians(dec_degrees)
     
+    # Calculate the sun's position
+    ra=get_right_ascension(year, month, day)
+    dec=get_declination(year, month, day)
+    ra_rad = math.radians(ra)
+    dec_rad = math.radians(dec)
+
+    # Calculate Local Sidereal Time (LST)
+    T=(JD-2451545.0)/36525.0                # Julian Centuries since J2000
+    sdshours=24.06570982441908*(JD-2451545) # Sidereal Time in hours since J2000
+    GSTJ2000=6.697374558                    # Greenwich Sidereal Time at J2000
+    corr=T*T*0.000026*(T)                # Correction for nutation, precession, and aberration    
     # Calculate Local Sidereal Time (LST)
     T = (JD - 2451545.0) / 36525.0
-    LST_hours = (6.697374558 + 24.06570982441908 * (JD - 2451545) + T*T*0.000026 * (T)) % 24
-    LST = LST_hours * 15.0  # Convert hours to degrees
+    LST_hours=(GSTJ2000+sdshours+corr)%24
+    LST = LST_hours * 15.0  # Convert hours to degrees 360/24 (degrees per hours) = 15 degrees per hour
     
     # Calculate Hour Angle (HA)
     HA = LST + observer_lon - ra
@@ -61,11 +115,7 @@ def calculate_azimuth_elevation(observer_lat, observer_lon, year, month, day, lo
     elevation_rad = math.asin(math.sin(observer_lat_rad)*math.sin(dec_rad) + math.cos(observer_lat_rad)*math.cos(dec_rad)*math.cos(HA_rad))
     elevation = math.degrees(elevation_rad)
     
-    # Azimuth
-    azimuth_rad = math.atan2(-math.sin(HA_rad), (math.tan(dec_rad)*math.cos(observer_lat_rad) - math.sin(observer_lat_rad)*math.cos(HA_rad)))
-    azimuth = math.degrees(azimuth_rad) + 180.0  # Adjusting azimuth to be measured from the North
-    
-    return azimuth, elevation
+    return elevation
 
 # User input section
 year = int(input("Enter the year: "))
